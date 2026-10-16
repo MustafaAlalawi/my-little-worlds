@@ -94,12 +94,15 @@ try{pv();speechSynthesis.onvoiceschanged=pv}catch(e){}
 function bounce(){const r=document.querySelector('.rabbit');if(r){r.classList.remove('hop');void r.getBoundingClientRect();r.classList.add('hop')}}
 let cur='',DB,tk=0,au=null,nt,PAUSED=0,xt=0;const REC={};
 const TX=k=>k==='quran'||k==='hadith';const later=(f,ms)=>{clearTimeout(nt);nt=setTimeout(f,ms)};
-const act=()=>KEYS.filter(k=>!S.off.includes(k)&&(k!=='songs'||D.songs[3].some(x=>REC[x[0]])));
+const act=()=>KEYS.filter(k=>!S.off.includes(k)&&(k!=='songs'||SONGS||D.songs[3].some(x=>REC[x[0]])));
 const toast=m=>{const t=$('tt');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',2000)};
 function idb(){return new Promise(r=>{try{const q=indexedDB.open('mlw',1);q.onupgradeneeded=()=>q.result.createObjectStore('r');q.onsuccess=()=>{DB=q.result;const g=DB.transaction('r').objectStore('r').openCursor();g.onsuccess=e=>{const c=e.target.result;if(c){REC[c.key]=URL.createObjectURL(c.value);c.continue()}else r()};g.onerror=()=>r()};q.onerror=()=>r()}catch(e){r()}})}
 function putRec(k,f){if(!DB)return;DB.transaction('r','readwrite').objectStore('r').put(f,k);REC[k]=URL.createObjectURL(f)}
 function delRec(k){if(!DB)return;DB.transaction('r','readwrite').objectStore('r').delete(k);delete REC[k]}
-function one(t){return new Promise(res=>{if(REC[t]){au=new Audio(REC[t]);au.volume=S.vol;au.onended=au.onerror=()=>res();au.play().catch(()=>res());return}if(!window.speechSynthesis)return res();try{const u=new SpeechSynthesisUtterance(t);u.lang='ar-SA';u.rate=.85;u.pitch=1;u.volume=S.vol;if(V)u.voice=V;u.onend=u.onerror=()=>res();setTimeout(()=>speechSynthesis.speak(u),60);setTimeout(res,7000)}catch(e){res()}})}
+let SF={},BAD={},HAS={};let SONGS=0;fetch('sounds.json').then(r=>r.json()).then(j=>{SF=j;return Promise.all(D.songs[3].map(x=>has(x[0])))}).then(r=>{SONGS=r.some(Boolean)}).catch(()=>{});
+async function has(t){if(REC[t])return 1;if(!SF[t]||BAD[t])return 0;if(t in HAS)return HAS[t];for(const e of['mp3','m4a']){try{if((await fetch('sounds/'+SF[t]+'.'+e,{method:'HEAD'})).ok)return HAS[t]=1}catch(x){}}return HAS[t]=0}
+function tts(t,res){if(!window.speechSynthesis)return res();try{const u=new SpeechSynthesisUtterance(t);u.lang='ar-SA';u.rate=.85;u.pitch=1;u.volume=S.vol;if(V)u.voice=V;u.onend=u.onerror=()=>res();setTimeout(()=>speechSynthesis.speak(u),60);setTimeout(res,7000)}catch(e){res()}}
+function one(t){return new Promise(res=>{const L=REC[t]?[REC[t]]:SF[t]&&!BAD[t]?['mp3','m4a'].map(e=>'sounds/'+SF[t]+'.'+e):[];const go=i=>{if(i>=L.length){if(SF[t]&&!REC[t])BAD[t]=1;return tts(t,res)}au=new Audio(L[i]);au.volume=S.vol;au.onended=()=>res();au.onerror=()=>go(i+1);au.play().catch(e=>{if(!e||e.name!=='NotSupportedError')res()})};go(0)})}
 async function run(a,id){for(const t of a){if(!t||id!==tk)return;await one(t)}}
 function say(...a){bounce();const id=++tk;try{speechSynthesis.cancel();speechSynthesis.resume()}catch(e){}if(au){au.pause();au=null}if(!S.voice)return;run(a,id)}
 function setCur(c){clearTimeout(nt);cur=c;const it=[['home','🏠','الرئيسية'],...act().map(k=>[k,D[k][1],D[k][0]]),['games','🎮','الألعاب']];$('nb').innerHTML=it.map(x=>`<button class='${cur===x[0]?'on':''}' onclick='${x[0]==='home'?'home()':x[0]==='games'?'games()':'sec("'+x[0]+'")'}'>${x[1]}<span>${x[2]}</span></button>`).join('')}
@@ -122,8 +125,8 @@ function show(k,i){const x=D[k][3][i],s=$('stg');mark(k,x[0]);
 if(k==='numbers'){s.innerHTML=`<div class="big">${x[1]}</div><div class="dots">${'🍎'.repeat(i+1)}</div>`;say(x[0])}
 else if(k==='letters'){s.innerHTML=`<div class="big">${x[1]}</div><div class="big" style="font-size:4rem">${x[3]}</div><small>${x[2]}</small>`;say(x[0],'مثل '+x[2])}
 else if(k==='stories'){s.innerHTML=`<div class="big">${x[1]}</div><small>${x[0]}</small><div style="font-size:1.3rem;line-height:1.9">${x[2].join(' ')}</div><button class="pbtn" onclick="story(${i})">▶ استمع</button>`;story(i)}
-else if(TX(k)){s.innerHTML=`<small>${x[0]}</small><div style="font-size:1.7rem;line-height:2.1">${x[1]}</div>${x[2]?`<small style="font-size:1rem">${x[2]}</small>`:''}${REC[x[0]]?'':'<small style="font-size:.9rem;color:#718096">سجّل صوتك من إعدادات الوالدين ليُسمَع هنا</small>'}`;if(REC[x[0]])say(x[0])}
-else{s.innerHTML=`<div class="big">${vis(x[1])}</div><small>${x[0]}</small>`;if(k==='songs'){if(REC[x[0]])say(x[0])}else say(ph(k,x[0]),x[2])}
+else if(TX(k)){s.innerHTML=`<small>${x[0]}</small><div style="font-size:1.7rem;line-height:2.1">${x[1]}</div>${x[2]?`<small style="font-size:1rem">${x[2]}</small>`:''}`;has(x[0]).then(h=>h?say(x[0]):s.insertAdjacentHTML('beforeend','<small style="font-size:.9rem;color:#718096">سجّل صوتك من إعدادات الوالدين ليُسمَع هنا</small>'))}
+else{s.innerHTML=`<div class="big">${vis(x[1])}</div><small>${x[0]}</small>`;if(k==='songs'){has(x[0]).then(h=>h&&say(x[0]))}else say(ph(k,x[0]),x[2])}
 tone(520+i*20,.12)}
 function games(){setCur('games');say('اختر لعبة');
 app.innerHTML=`<div class="bar"><button class="back" onclick="home()">🏠</button><h2>الألعاب</h2>${RAB('sm')}</div><div class="menu">${GAMEKEYS.map(k=>`<button class="btn" style="background:${D[k][2]}" onclick="play('${k}')">${D[k][1]}<span>أين؟ ${D[k][0]}</span></button>`).join('')}<button class="btn" style="background:#dd6b20" onclick="play('animals','snd')">🔊<span>صوت الحيوان</span></button><button class="btn" style="background:#319795" onclick="match()">🃏<span>مطابقة الصور</span></button><button class="btn" style="background:#e53e3e" onclick="bub()">🎈<span>فرقع البالونات</span></button><button class="btn" style="background:#38a169" onclick="cnt()">🔢<span>كم العدد؟</span></button><button class="btn" style="background:#805ad5" onclick="paint()">🖍️<span>تلوين</span></button></div>`}
@@ -136,7 +139,7 @@ function round(){setCur('games');const {k,m}=G;let pool=D[k][3].filter(x=>m!=='s
 const opts=shuffle([t,...shuffle(pool.filter(x=>x!==t)).slice(0,2)]);G.q=m==='snd'?t[2]:qs(k,t[0]);
 app.innerHTML=`<div class="bar"><button class="back" onclick="games()">🏠</button><h2>${m==='snd'?'صوت الحيوان':D[k][0]}</h2><button class="back" onclick="say(G.q)">🔊</button></div><div class="center">${RAB()}<div class="grid" style="width:100%;grid-template-columns:repeat(${opts.length},1fr)">${opts.map((x,i)=>`<button class="card big" id="o${i}" onclick="pick(${i})">${vis(x[1])}</button>`).join('')}</div></div>`;G.o=opts;later(()=>say(G.q),400)}
 function pick(i){if(G.done)return;const x=G.o[i],b=$('o'+i);
-if(x===G.t){G.done=1;G.m==='cnt'||mark(G.k,x[0]);S.stars=(S.stars||0)+1;save();good();say(REC['أحسنت!']?'أحسنت!':rnd(['أحسنت يا '+S.name+'!','رائع!','ممتاز!','برافو!']));later(G.fn||round,2200)}
+if(x===G.t){G.done=1;G.m==='cnt'||mark(G.k,x[0]);S.stars=(S.stars||0)+1;save();good();say(REC['أحسنت!']||SF['أحسنت!']?'أحسنت!':rnd(['أحسنت يا '+S.name+'!','رائع!','ممتاز!','برافو!']));later(G.fn||round,2200)}
 else{soft();b.classList.add('shake');say('هيا نحاول مرة أخرى!',G.q);G.w++;if(G.w>=2)$('o'+G.o.indexOf(G.t)).classList.add('hint')}}
 function bub(){setCur('games');const P=shuffle(['numbers','letters','animals','fruits'].flatMap(k=>D[k][3].map(x=>[k,x]))).slice(0,6),C=['#fc8181','#63b3ed','#f6e05e','#68d391','#f6ad55','#b794f4'];let n=6;
 app.innerHTML=`<div class="bar"><button class="back" onclick="games()">🏠</button><h2>فرقع البالونات</h2>${RAB('sm')}</div><div id="bb" style="position:relative;height:60vh;overflow:hidden;background:#fff;border-radius:28px"></div>`;
@@ -154,7 +157,7 @@ c.onpointermove=e=>{if(!d)return;const[a,b]=pt(e);x.lineTo(a,b);x.stroke();x.beg
 c.onpointerup=c.onpointerleave=()=>d=0}
 const PIC=["<circle cx='50' cy='50' r='18'/><path d='M50 18v-10M50 82v10M18 50h-10M82 50h10M27 27l-7-7M73 27l7-7M27 73l-7 7M73 73l7 7'/>","<path d='M15 90V45L50 15l35 30v45zM40 90V62h20v28M62 52h14v12H62z'/>","<path d='M15 50Q40 20 70 50Q40 80 15 50zM70 50L92 32v36z'/><circle cx='30' cy='46' r='2'/>","<circle cx='50' cy='40' r='8'/><circle cx='50' cy='20' r='10'/><circle cx='70' cy='40' r='10'/><circle cx='50' cy='60' r='10'/><circle cx='30' cy='40' r='10'/><path d='M50 68V95M50 85q15-10 25-5M50 80q-15-10-25-5'/>","<polygon points='50,8 61,38 93,38 67,57 77,90 50,70 23,90 33,57 7,38 39,38'/>",""];
 function pic(i){const c=$('cv');c.getContext('2d').clearRect(0,0,c.width,c.height);$('ol').innerHTML=PIC[i]}
-function story(i){const x=D.stories[3][i];REC[x[0]]?say(x[0]):say(...x[2])}
+async function story(i){const x=D.stories[3][i];(await has(x[0]))?say(x[0]):say(...x[2])}
 function swK(i){save();S.ak=i;const k=S.kids[i];S.name=nm(k.name);S.seen=k.seen;S.stars=k.stars||0;save()}
 function addK(n){if(!n.trim())return;if(S.kids.length>=6)return toast('الحد الأقصى ٦ أطفال');save();S.kids.push({name:nm(n),seen:{},stars:0});swK(S.kids.length-1)}
 function delK(i){if(S.kids.length<2||!confirm('حذف ملف هذا الطفل؟'))return;S.kids.splice(i,1);S.ak=-1;swK(0);pscr()}
@@ -174,12 +177,14 @@ app.innerHTML=`<div class="bar"><button class="back" onclick="home()">🏠</butt
 <div class="panel"><b>الأقسام المفعّلة</b>${KEYS.map(k=>row(D[k][1]+' '+D[k][0],`<input type="checkbox" ${S.off.includes(k)?'':'checked'} onchange="tog('${k}',this.checked)">`)).join('')}</div>
 <div class="panel"><b>ما جرّبه ${S.name}</b>${KEYS.map(k=>{const s=S.seen[k]||{},n=Object.keys(s).length,top=Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join('، ');return row(D[k][0],`<span>جرّب ${ar(n)} من ${ar(D[k][3].length)}${top?' · أحبّ: '+top:''}</span>`)}).join('')}<button class="pbtn" id="rs" onclick="reset(this)">إعادة ضبط التقدم</button></div>
 <div class="panel tips"><b>أفكار للتعلم بعيدًا عن الشاشة</b><ul><li>اسأل ${S.name} في البيت: «أين الكوب؟» وصفّقوا معًا عند اللمس.</li><li>قلّدوا أصوات الحيوانات واللعب بالحركة بعد كل جلسة قصيرة.</li><li>عدّوا الدرجات أو الألعاب أو الفواكه الحقيقية معًا.</li><li>كرّروا الكلمة بهدوء دون أن تطلبوا منه تكرارها.</li></ul></div>
-<div class="panel center"><b>حول التطبيق</b><span>تطوير: مصطفى العلوي</span><a class="pbtn" dir="ltr" href="tel:+967776323265" style="text-decoration:none">+967 776323265</a><small>الإصدار ١٫٣</small></div>`}
+<div class="panel center"><b>حول التطبيق</b><span>تطوير: مصطفى العلوي</span><a class="pbtn" dir="ltr" href="tel:+967776323265" style="text-decoration:none">+967 776323265</a><small>الإصدار ١٫٦</small></div>`}
 let L=[],RS='fixed';
 function recs(s){RS=s||RS;setCur('parent');L=[];
-if(RS==='fixed')L=[`أهلاً يا ${S.name}! أنا الأرنب. هيا نلعب`,'أحسنت!','هيا نحاول مرة أخرى!'];
-else D[RS][3].forEach(x=>{L.push(RS==='numbers'||RS==='letters'?x[0]:ph(RS,x[0]));if(RS==='animals'&&x[2])L.push(x[2])});
-app.innerHTML=`<div class='bar'><button class='back' onclick='pscr()'>➡</button><h2>تسجيل الأصوات</h2></div><div class='panel'><p style='margin:0 0 8px'>اضغط 🎙️ ثم سجّل بصوتك، أو اختر ملفًا صوتيًا من هاتفك. سيستخدمه التطبيق بدل الصوت الآلي.</p><select onchange='recs(this.value)' style='font-size:1rem;padding:8px;border-radius:10px'>${[['fixed','عبارات عامة'],...KEYS.map(k=>[k,D[k][0]])].map(o=>`<option value='${o[0]}' ${RS===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div><div class='panel'>${L.map((t,i)=>`<div class='row'><span>${t}</span><span>${REC[t]?'✅ ':''}<label class='pbtn' style='display:inline-block'>🎙️<input type='file' accept='audio/*' hidden onchange='up(${i},this)'></label>${REC[t]?` <button class='pbtn' onclick='say(L[${i}])'>▶</button> <button class='pbtn' style='background:#e53e3e' onclick='delRec(L[${i}]);recs()'>🗑</button>`:''}</span></div>`).join('')}</div>`}
+if(RS==='fixed')L=[`أهلاً يا ${S.name}! أنا الأرنب. هيا نلعب`,'أحسنت!','هيا نحاول مرة أخرى!','اختر لعبة','أين الصورة المتشابهة؟','كم العدد؟','حان وقت اللعب الحقيقي'];
+else if(RS==='titles')L=KEYS.map(k=>D[k][0]);
+else if(RS==='qs')['animals','fruits','colors','body','transport','shapes','family','house'].forEach(k=>D[k][3].forEach(x=>L.push(qs(k,x[0]))));
+else D[RS][3].forEach(x=>{L.push(RS==='numbers'||RS==='letters'?x[0]:ph(RS,x[0]));if(RS==='animals'&&x[2])L.push(x[2]);if(RS==='letters')L.push('مثل '+x[2])});
+app.innerHTML=`<div class='bar'><button class='back' onclick='pscr()'>➡</button><h2>تسجيل الأصوات</h2></div><div class='panel'><p style='margin:0 0 8px'>اضغط 🎙️ ثم سجّل بصوتك، أو اختر ملفًا صوتيًا من هاتفك. سيستخدمه التطبيق بدل الصوت الآلي.</p><select onchange='recs(this.value)' style='font-size:1rem;padding:8px;border-radius:10px'>${[['fixed','عبارات عامة'],['titles','عناوين الأقسام'],['qs','أسئلة الألعاب (أين...؟)'],...KEYS.map(k=>[k,D[k][0]])].map(o=>`<option value='${o[0]}' ${RS===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div><div class='panel'>${L.map((t,i)=>`<div class='row'><span>${t}</span><span>${REC[t]?'✅ ':''}<label class='pbtn' style='display:inline-block'>🎙️<input type='file' accept='audio/*' hidden onchange='up(${i},this)'></label>${REC[t]?` <button class='pbtn' onclick='say(L[${i}])'>▶</button> <button class='pbtn' style='background:#e53e3e' onclick='delRec(L[${i}]);recs()'>🗑</button>`:''}</span></div>`).join('')}</div>`}
 function up(i,el){const f=el.files[0];if(f){putRec(L[i],f);recs()}}
 function setp(k,v){S[k]=v;save()}
 function tog(k,on){S.off=S.off.filter(x=>x!==k);if(!on)S.off.push(k);save()}
