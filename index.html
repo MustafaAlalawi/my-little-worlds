@@ -109,7 +109,7 @@ function idb(){return new Promise(r=>{try{const q=indexedDB.open('mlw',1);q.onup
 function putRec(k,f){if(!DB)return;DB.transaction('r','readwrite').objectStore('r').put(f,k);REC[k]=URL.createObjectURL(f)}
 function delRec(k){if(!DB)return;DB.transaction('r','readwrite').objectStore('r').delete(k);delete REC[k]}
 let SF={},BAD={},HAS={};let SONGS=0;fetch('sounds.json').then(r=>r.json()).then(j=>{SF=j;return Promise.all(D.songs[3].map(x=>has(x[0])))}).then(r=>{SONGS=r.some(Boolean)}).catch(()=>{});
-async function has(t){if(REC[t])return 1;if(!SF[t]||BAD[t])return 0;if(t in HAS)return HAS[t];for(const e of['mp3','m4a']){try{if((await fetch('sounds/'+SF[t]+'.'+e,{method:'HEAD'})).ok)return HAS[t]=1}catch(x){}}return HAS[t]=0}
+async function has(t){if(REC[t])return 1;if(!SF[t]||BAD[t])return 0;if(t in HAS)return HAS[t];for(const e of['mp3','m4a']){const u='sounds/'+SF[t]+'.'+e;try{if(await caches.match(u))return HAS[t]=1;if((await fetch(u,{method:'HEAD'})).ok)return HAS[t]=1}catch(x){}}return HAS[t]=0}
 function tts(t,res){if(!window.speechSynthesis)return res();try{const u=new SpeechSynthesisUtterance(t);u.lang='ar-SA';u.rate=.85;u.pitch=1;u.volume=S.vol;if(V)u.voice=V;u.onend=u.onerror=()=>res();setTimeout(()=>speechSynthesis.speak(u),60);setTimeout(res,7000)}catch(e){res()}}
 function one(t){return new Promise(res=>{const L=REC[t]?[REC[t]]:SF[t]&&!BAD[t]?['mp3','m4a'].map(e=>'sounds/'+SF[t]+'.'+e):[];const go=i=>{if(i>=L.length){if(SF[t]&&!REC[t])BAD[t]=1;return tts(t,res)}au=new Audio(L[i]);au.volume=S.vol;au.onended=()=>res();au.onerror=()=>go(i+1);au.play().catch(e=>{if(!e||e.name!=='NotSupportedError')res()})};go(0)})}
 async function run(a,id){for(const t of a){if(!t||id!==tk)return;await one(t)}}
@@ -231,7 +231,7 @@ app.innerHTML=`<div class="bar"><button class="back" onclick="home()">🏠</butt
 <div class="panel"><b>الأقسام المفعّلة</b>${KEYS.map(k=>row(D[k][1]+' '+D[k][0],`<input type="checkbox" ${S.off.includes(k)?'':'checked'} onchange="tog('${k}',this.checked)">`)).join('')}</div>
 <div class="panel"><b>ما جرّبه ${S.name}</b>${KEYS.map(k=>{const s=S.seen[k]||{},n=Object.keys(s).length,top=Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]).join('، ');return row(D[k][0],`<span>جرّب ${ar(n)} من ${ar(D[k][3].length)}${top?' · أحبّ: '+top:''}</span>`)}).join('')}<button class="pbtn" id="rs" onclick="reset(this)">إعادة ضبط التقدم</button></div>
 <div class="panel tips"><b>أفكار للتعلم بعيدًا عن الشاشة</b><ul><li>اسأل ${S.name} في البيت: «أين الكوب؟» وصفّقوا معًا عند اللمس.</li><li>قلّدوا أصوات الحيوانات واللعب بالحركة بعد كل جلسة قصيرة.</li><li>عدّوا الدرجات أو الألعاب أو الفواكه الحقيقية معًا.</li><li>كرّروا الكلمة بهدوء دون أن تطلبوا منه تكرارها.</li></ul></div>
-<div class="panel center"><b>حول التطبيق</b><span>تطوير: مصطفى العلوي</span><a class="pbtn" dir="ltr" href="tel:+967776323265" style="text-decoration:none">+967 776323265</a><small>الإصدار ٢٫١</small></div>`}
+<div class="panel center"><b>حول التطبيق</b><span>تطوير: مصطفى العلوي</span><a class="pbtn" dir="ltr" href="tel:+967776323265" style="text-decoration:none">+967 776323265</a><small>الإصدار ٢٫٢</small></div>`}
 let L=[],RS='fixed';
 function recs(s){RS=s||RS;setCur('parent');L=[];
 if(RS==='fixed')L=[`أهلاً يا ${S.name}! أنا الأرنب. هيا نلعب`,'أحسنت!','هيا نحاول مرة أخرى!','اختر لعبة','أين الصورة المتشابهة؟','كم العدد؟','حان وقت اللعب الحقيقي'];
